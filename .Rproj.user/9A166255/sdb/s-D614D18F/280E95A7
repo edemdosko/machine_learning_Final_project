@@ -1,0 +1,17 @@
+{
+    "contents" : "\n\nlibrary(shiny)\n\nshinyUI(fluidPage(\n           titlePanel(\"Housing Cost Prediction\"),\n           sidebarLayout( \n                sidebarPanel(\n                        # Setting id makes input$tabs give the tabName of currently-selected tab\n                        selectInput(\"dataset\", \"Choose a test set:\", \n                                    choices = c(\"testset1\", \"testset2\", \"testset3\", \"testset4\", \"testset5\"))\n                ),\n       \n                mainPanel(\n                        tabsetPanel(\n                                \n                                tabPanel('summary', verbatimTextOutput('summary')),\n                                tabPanel('plot', plotOutput('plot')),\n                                tabPanel('diagnostics', plotOutput(\"diagnostics\"))\n                                \n                        )\n                \n                )\n\n           )\n        \n))\n",
+    "created" : 1461107409372.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "380008697",
+    "id" : "280E95A7",
+    "lastKnownWriteTime" : 1461129539,
+    "path" : "~/COURSERA/data_products/ui.R",
+    "project_path" : null,
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "source_on_save" : false,
+    "type" : "r_source"
+}

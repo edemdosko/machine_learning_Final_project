@@ -1,0 +1,114 @@
+---
+title: "Practical Machine learning Final Project - 4/22/2016" 
+output: html_document
+---
+
+### Executive summary
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases
+
+### Analysis
+
+```{r, echo=TRUE}
+#load required libraries
+pacman::p_load(dplyr,funModeling,caret,data.table,rpart,randomForest,rattle,gbm)
+
+#Set seed to make the report reproducible
+set.seed(12345)
+#---------------------------------- DATA PRE-PROCESSNG----------------------------------------------
+#load the training and test sets and drop ID variables
+traindata <- fread("pml-training.csv",na.strings=c("NA","#DIV/0!", "")) %>% select(-V1)
+testdata <- fread("pml-testing.csv", na.strings=c("NA","#DIV/0!", "")) %>% select(-V1)
+```
+
+Get a summary of the data. The ouput is very informative but hidden here since it 160 rows
+It gives the quantity and percentages of zeros and NAs for each variable. Only the top 6
+rows are shown
+
+```{r, echo=TRUE}
+summ <- df_status(traindata)
+head(summ)
+```
+
+Let's partition the training set into train and test sets and set the training parameters
+
+```{r, echo=TRUE}
+#remove variables with more than 70% of missing values
+vars_to_exclude <- filter(summ, p_na > 70)
+traindata[, (vars_to_exclude$variable) := NULL]
+
+#Partition the training data into train and test sets
+inTrain <- createDataPartition(y=traindata$classe, p=0.6, list=FALSE)
+trainset<- traindata[inTrain,]; testset <- traindata[-inTrain,]
+
+#Remove variables with variables with low variance as they may have less predictive power 
+nzVars <- nearZeroVar(trainset, saveMetrics = TRUE)
+#re-setting the trainset after near zero variance removal
+trainset <- trainset[!nzVars$nzv]
+#Let's try to reduce the number of predictors,i.e, select the principal components using pca
+preProc <- preProcess(trainset, method=c("center", "scale", "pca"),thresh=0.8)
+#predict trainset and testset based on the pca object
+trainsetPC <- predict(preProc,trainset)
+testsetPC <- predict(preProc,testset)
+#Setting up all training parameters
+ctrl <- trainControl(method="repeatedcv",number = 10, repeats = 2)
+```
+
+## Train model
+
+```{r, echo=TRUE}
+#I will use first the random forest and a generalized boosted trees to model the data
+rfFit <- train(classe ~.,data = trainsetPC, method = "rf",trControl = ctrl)
+gbmFit <- train(classe ~.,data = trainsetPC, method = "gbm",
+              trControl = ctrl)
+#plotting the model
+plot(rfFit, width = 400, height = 300, main = "Random Forest")
+plot(gbmFit, width = 400, height = 300, main = "Generalized Boosted Model")
+```
+
+Based on the graphs above, it does seem like Random Forest performed better. But let's investigate further
+
+```{r, echo=TRUE}
+#concatenating the fitted models into a single vector
+model <- c("Random Forest","Generalized Boosted Model")
+#Comparing the models to get the best fitted model
+accuracy <- c(max(rfFit$results$Accuracy),
+              max(gbmFit$results$Accuracy))
+
+kappa <- c(max(rfFit$results$Kappa),
+           max(gbmFit$results$Kappa))
+
+#gathering accuracy info into a data frame
+performance <- data.frame(model, accuracy, kappa)
+performance
+
+#Based on the measure of accuracy, random forest outperformed boosted trees
+#So we predict using the RF moel on the test set
+testsetPC$pred <- predict(rfFit, testsetPC)
+
+#Let's build a confusion matrix to further check the model performance
+cfm <-confusionMatrix(testsetPC$classe,testsetPC$pred)
+cfm 
+```
+
+## Make a sactter plot comparing observed and predicted outcome
+
+```{r, echo=TRUE}
+p <- ggplot(testsetPC, aes(classe, pred)) + geom_point(color="cadetblue", size=2)
+p <- p + geom_abline(intercept = 0, slope = 1, color = "orange", size = 1)
+p <- p + xlab("Obesrved Outcome") + ylab("Predicted Outcome")
+p <- p + ggtitle("Predicted vs Observed outcome from a Random Forest model")
+p <- p + theme_bw()
+print(p)
+```
+
+## Predict the testing data
+The prediction outcome were used to complete the quiz.
+
+### Conclusion
+For this analysis, I fitted a random forest model (97% accuracy) and boosted tree model (88%). So The random forest outperformed the boosted tree. The model is tested using the random forest model with an out-of-sample error of 4%.
+
+### Reference
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+
+
